@@ -20,7 +20,7 @@ The reason the original code was returning `0.0` for all points is due to the da
 The standard Open3D `o3d.io.read_point_cloud` function expects `SIZE 4` (`float32`) for binary data. When it tries to read the 64-bit values as 32-bit floats, it parses the upper/lower bytes incorrectly, resulting in arrays filled with zeros.
 
 To correctly read double-precision binary PCD files, we use Open3D's Tensor API (`o3d.t.io.read_point_cloud`), which correctly respects the `SIZE 8` specification in the binary PCD header. Then, we can convert it back to the legacy PointCloud format for standard processing."""
-code2 = """PCD_FILE = "lidar_data/frame_000011_t_001.000.pcd"
+code2 = """PCD_FILE = "../lidar_data/frame_000011_t_001.000.pcd"
 
 if not os.path.exists(PCD_FILE):
     print(f"Error: File {PCD_FILE} not found.")

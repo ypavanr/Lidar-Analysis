@@ -16,7 +16,7 @@ print("Numpy:", np.__version__)"""
 
 text2 = """## Loading the PCD File with Intensity
 We will use Open3D's Tensor API to correctly load the point cloud, as it natively handles custom attributes like `intensity` and double-precision coordinates without data loss."""
-code2 = """PCD_FILE = "lidar_with_intensity/frame_00015.pcd"
+code2 = """PCD_FILE = "../lidar_with_intensity/frame_00015.pcd"
 
 if not os.path.exists(PCD_FILE):
     print(f"Error: File {PCD_FILE} not found.")

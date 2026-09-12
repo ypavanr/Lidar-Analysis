@@ -30,7 +30,11 @@ def main():
     # Set playback speed multiplier (1.0 = normal 10fps, 0.5 = half speed, 2.0 = double speed)
     PLAYBACK_SPEED = 0.2
     
+    # Check for lidar_with_intensity in current directory or parent directory
     data_dir = "lidar_with_intensity"
+    if not os.path.exists(data_dir) and os.path.exists(os.path.join("..", "lidar_with_intensity")):
+        data_dir = os.path.join("..", "lidar_with_intensity")
+        
     pcd_files = sorted(glob.glob(os.path.join(data_dir, "frame_*.pcd")))
     
     if not pcd_files:

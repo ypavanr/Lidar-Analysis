@@ -5,4 +5,4 @@ conda activate lidar-env
 jupyter notebook
 
 
-conda run -p ./environment python play_lidar_scenario.py
+conda run -p ./environment python scripts/play_lidar_scenario.py
