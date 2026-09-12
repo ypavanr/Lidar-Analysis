@@ -714,7 +714,25 @@ catch
         'connected to a To Workspace block named "lidar_intensity".']);
 
 end
+% 20. CHECK CLUSTERS OUTPUT
+% ================================================================
 
+fprintf('\nChecking clusters output...\n');
+
+try
+
+    cluster = out.get('lidar_cluster');
+
+catch
+
+    error([ ...
+        'Simulation completed, but lidar_cluster was not found.\n\n' ...
+        'Check that the Clusters output of the Lidar Sensor is ' ...
+        'connected to a To Workspace block named "lidar_cluster".']);
+
+end
+
+fprintf('Clusters output found successfully.\n');
 
 %% ================================================================
 % 20. GET RAW DATA
@@ -722,7 +740,7 @@ end
 
 locData = loc.Data;
 intensityData = intensity.Data;
-
+clusterData = cluster.Data;
 fprintf('\n');
 fprintf('============================================================\n');
 fprintf(' RAW LiDAR DATA\n');
@@ -883,21 +901,27 @@ for frameIdx = 1:numFrames
     XYZ = locData(:, :, :, frameIdx);
 
     I = intensityData(:, :, frameIdx);
+    C = clusterData(:,:,:,frameIdx);
 
     X = XYZ(:, :, 1);
     Y = XYZ(:, :, 2);
     Z = XYZ(:, :, 3);
+    ActorID=C(:,:,1);
+    ClassID=C(:,:,2);
+    MaterialID=C(:,:,3);
 
     % ------------------------------------------------------------
     % Flatten while preserving EVERY sample
     % ------------------------------------------------------------
 
-    XYZI = [ ...
-        X(:), ...
-        Y(:), ...
-        Z(:), ...
-        double(I(:))];
-
+    XYZIC = [ ...
+    X(:), ...
+    Y(:), ...
+    Z(:), ...
+    double(I(:)), ...
+    ActorID(:), ...
+    ClassID(:), ...
+    MaterialID(:)];
 
     % ------------------------------------------------------------
     % Output filename
@@ -934,16 +958,16 @@ for frameIdx = 1:numFrames
         'VERSION 0.7\n');
 
     fprintf(fid, ...
-        'FIELDS x y z intensity\n');
+    'FIELDS x y z intensity actor_id class_id material_id\n');
 
     fprintf(fid, ...
-        'SIZE 4 4 4 4\n');
-
+        'SIZE 4 4 4 4 4 4 4\n');
+    
     fprintf(fid, ...
-        'TYPE F F F F\n');
-
+        'TYPE F F F F F F F\n');
+    
     fprintf(fid, ...
-        'COUNT 1 1 1 1\n');
+        'COUNT 1 1 1 1 1 1 1\n');
 
     fprintf(fid, ...
         'WIDTH %d\n', ...
@@ -974,11 +998,14 @@ for frameIdx = 1:numFrames
     for p = 1:numPointsPerFrame
 
         fprintf(fid, ...
-            '%.9g %.9g %.9g %.9g\n', ...
-            XYZI(p,1), ...
-            XYZI(p,2), ...
-            XYZI(p,3), ...
-            XYZI(p,4));
+            '%.9g %.9g %.9g %.9g %.0f %.0f %.0f\n', ...
+            XYZIC(p,1), ...
+            XYZIC(p,2), ...
+            XYZIC(p,3), ...
+            XYZIC(p,4), ...
+            XYZIC(p,5), ...
+            XYZIC(p,6), ...
+            XYZIC(p,7));
 
     end
 
@@ -1016,7 +1043,12 @@ out.numPointsPerFrame = ...
 out.location = locData;
 
 out.intensity = intensityData;
+out.clusters = clusterData;
+out.actorID = clusterData(:,:,1,:);
 
+out.classID = clusterData(:,:,2,:);
+
+out.materialID = clusterData(:,:,3,:);
 
 %% ================================================================
 % 27. FINAL MESSAGE
