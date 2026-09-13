@@ -1,4 +1,4 @@
-function out = exportRawLidarWithIntensity(mdl, outputFolder)
+function out = exportRawLidarWithIntensity(mdl, scenarioName, outputFolder)
 % ================================================================
 % exportRawLidarWithIntensity
 %
@@ -8,13 +8,14 @@ function out = exportRawLidarWithIntensity(mdl, outputFolder)
 %
 %   out = exportRawLidarWithIntensity( ...
 %       'LidarIntensityTest', ...
-%       'lidar_with_intensity');
+%       'myDrivingScenario', ...
+%       'data/raw/lidar_with_intensity');
 %
 % No manual workspace setup is required.
 %
 % The function automatically:
 %
-%   1. Finds createDrivingScenario.m
+%   1. Finds the specified scenario function (e.g., myDrivingScenario.m)
 %   2. Creates the drivingScenario object
 %   3. Creates actor_profiles
 %   4. Loads the Simulink model
@@ -40,8 +41,12 @@ if nargin < 1 || isempty(mdl)
     mdl = 'LidarIntensityTest';
 end
 
-if nargin < 2 || isempty(outputFolder)
-    outputFolder = 'lidar_with_intensity';
+if nargin < 2 || isempty(scenarioName)
+    scenarioName = 'myDrivingScenario';
+end
+
+if nargin < 3 || isempty(outputFolder)
+    outputFolder = fullfile('data', 'raw', 'lidar_with_intensity');
 end
 
 lidarBlk = [mdl '/Lidar Sensor'];
@@ -57,32 +62,33 @@ fprintf('============================================================\n');
 
 
 %% ================================================================
-% 1. FIND createDrivingScenario.m
+% 1. FIND SCENARIO FUNCTION
 % ================================================================
 
-fprintf('\nLocating createDrivingScenario.m...\n');
+fprintf('\nLocating %s.m...\n', scenarioName);
 
 % Directory containing this exporter
 thisFolder = fileparts(mfilename('fullpath'));
 
-% Make sure this folder is available on MATLAB path
-if ~contains(path, thisFolder)
-
-    addpath(thisFolder);
-
+% Make sure subfolders are available on MATLAB path
+if ~contains(path, fullfile(thisFolder, 'scenarios'))
+    addpath(fullfile(thisFolder, 'scenarios'));
+end
+if ~contains(path, fullfile(thisFolder, 'models'))
+    addpath(fullfile(thisFolder, 'models'));
 end
 
-scenarioFcn = which('myDrivingScenario');
+scenarioFcn = which(scenarioName);
 
 if isempty(scenarioFcn)
 
     error([ ...
-        'createDrivingScenario.m could not be found.\n\n' ...
+        '%s.m could not be found.\n\n' ...
         'Expected it to be available in:\n%s\n\n' ...
         'Make sure you exported the MATLAB function from ' ...
         'Driving Scenario Designer and saved it as:\n' ...
-        'createDrivingScenario.m'], ...
-        thisFolder);
+        '%s.m'], ...
+        scenarioName, fullfile(thisFolder, 'scenarios'), scenarioName);
 
 end
 
@@ -97,19 +103,19 @@ fprintf('\nCreating driving scenario...\n');
 
 try
 
-    % Call the exported scenario function.
+    % Call the exported scenario function dynamically.
     %
     % We intentionally do not assume which output is the
     % drivingScenario object.
 
-    [output1, output2] = myDrivingScenario();
+    [output1, output2] = feval(scenarioName);
 
 catch ME
 
     error([ ...
-        'Failed to execute myDrivingScenario.m.\n\n' ...
+        'Failed to execute %s.m.\n\n' ...
         'Original error:\n%s'], ...
-        ME.message);
+        scenarioName, ME.message);
 
 end
 
@@ -134,9 +140,10 @@ elseif isa(output2, 'drivingScenario')
 else
 
     error([ ...
-        'myDrivingScenario.m did not return a drivingScenario object.\n\n' ...
+        '%s.m did not return a drivingScenario object.\n\n' ...
         'Output 1 class: %s\n' ...
         'Output 2 class: %s'], ...
+        scenarioName, ...
         class(output1), ...
         class(output2));
 
@@ -220,24 +227,17 @@ fprintf('Actor profiles created: %d\n', ...
 
 
 %% ================================================================
-% 4. PUT ACTOR PROFILES INTO MATLAB WORKSPACE
+% 4. PUT REQUIRED VARIABLES INTO MATLAB WORKSPACE
 % ================================================================
 %
-% This is done AUTOMATICALLY by this function.
-%
-% You do NOT need to execute anything manually.
-%
-% The Lidar Sensor block is configured with:
-%
-%   ActorProfilesVariableName = actor_profiles
-%
-% Simulink may need this variable while updating the model.
-%
-% Therefore we create it here.
+% These variables are required by Simulink while the model
+% is being updated/compiled.
 
 assignin('base', 'actor_profiles', actor_profiles);
+assignin('base', 'scenario', scnro);
 
 fprintf('actor_profiles registered automatically.\n');
+fprintf('scenario registered automatically.\n');
 
 
 %% ================================================================
@@ -292,51 +292,16 @@ fprintf('Scenario Reader block found.\n');
 
 
 %% ================================================================
-% 7. DISPLAY SCENARIO READER CONFIGURATION
+% 7. CONFIGURE SCENARIO READER
 % ================================================================
 
-fprintf('\nReading Scenario Reader configuration...\n');
+fprintf('\nConfiguring Scenario Reader...\n');
 
-scenarioSource = get_param( ...
-    scenarioReaderBlk, ...
-    'ScenarioSource');
+set_param(scenarioReaderBlk, ...
+    'ScenarioSource', 'From workspace', ...
+    'ScenarioVariableName', 'scenario');
 
-fprintf('Scenario source : %s\n', scenarioSource);
-
-if hasDialogParameter( ...
-        scenarioReaderBlk, ...
-        'ScenarioFileName')
-
-    scenarioFile = get_param( ...
-        scenarioReaderBlk, ...
-        'ScenarioFileName');
-
-    fprintf('Scenario file   : %s\n', scenarioFile);
-
-    if ~exist(scenarioFile, 'file')
-
-        error( ...
-            'Scenario file does not exist:\n%s', ...
-            scenarioFile);
-
-    end
-
-    fprintf('Scenario file exists.\n');
-
-end
-
-if hasDialogParameter( ...
-        scenarioReaderBlk, ...
-        'ScenarioVariableName')
-
-    scenarioVariable = get_param( ...
-        scenarioReaderBlk, ...
-        'ScenarioVariableName');
-
-    fprintf('Scenario variable : %s\n', ...
-        scenarioVariable);
-
-end
+fprintf('Scenario Reader configured to use workspace variable "scenario".\n');
 
 
 %% ================================================================
@@ -649,10 +614,14 @@ fprintf('============================================================\n');
 % Create SimulationInput
 simIn = Simulink.SimulationInput(mdl);
 
-% Pass actor_profiles directly into simulation workspace.
+% Pass scenario and actor_profiles directly into simulation workspace.
 %
 % This means the simulation does not depend on the user's
 % workspace state.
+
+simIn = simIn.setVariable( ...
+    'scenario', ...
+    scnro);
 
 simIn = simIn.setVariable( ...
     'actor_profiles', ...
